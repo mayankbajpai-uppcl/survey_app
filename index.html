@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Material Survey App</title>
+
+<!-- Material Design 3 CSS -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/material-components-web/14.0.0/material-components-web.min.css" rel="stylesheet">
+
+<style>
+    body {
+        font-family: "Roboto", sans-serif;
+        background: #F3F3F3;
+        margin: 0;
+    }
+
+    .page {
+        display: none;
+        padding: 20px;
+    }
+
+    .active {
+        display: block;
+    }
+
+    .card {
+        background: white;
+        padding: 20px;
+        border-radius: 18px;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 15px;
+        font-size: 16px;
+        border: none;
+        border-radius: 12px;
+        margin-top: 10px;
+        background: #6750A4;
+        color: white;
+        font-weight: bold;
+    }
+
+    .btn-red {
+        background: #B3261E;
+        color: white;
+    }
+
+    .inputBox {
+        width: 100%;
+        padding: 15px;
+        border: 1px solid #DDD;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        font-size: 16px;
+    }
+
+    #camera {
+        width: 100%;
+        border-radius: 12px;
+        background: black;
+    }
+
+    #preview {
+        width: 100%;
+        border-radius: 12px;
+        margin-top: 10px;
+    }
+
+    .topTitle {
+        font-size: 26px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        color: #49454F;
+    }
+
+    .fab {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #6750A4;
+        color: white;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        font-size: 30px;
+        border: none;
+    }
+
+</style>
+</head>
+<body>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbxk5gcAoM1pk8qE3WWZgTN-zPc2jkqdDtaH6MEhFVGKMdGie4tWnBydUl8MNsc_ZOpw1Q/exec";
+
+function show(id) {
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+}
+</script>
+
+<!-- LOGIN CHOOSER -->
+<div class="page active" id="chooserPage">
+    <div class="topTitle">Welcome</div>
+    <button class="btn" onclick="show('surveyorLoginPage')">Surveyor Login</button>
+    <button class="btn" onclick="show('adminLoginPage')" style="background:#386641;">Admin Login</button>
+</div>
+
+<!-- SURVEYOR LOGIN -->
+<div class="page" id="surveyorLoginPage">
+    <div class="topTitle">Surveyor Login</div>
+    <input id="sId" placeholder="Surveyor ID" class="inputBox">
+    <input id="sPass" type="password" placeholder="Password" class="inputBox">
+    <button class="btn" onclick="surveyorLogin()">Login</button>
+    <p id="sLoginMsg" style="color:red"></p>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div class="page" id="adminLoginPage">
+    <div class="topTitle">Admin Login</div>
+    <input id="aId" placeholder="Admin ID" class="inputBox">
+    <input id="aPass" type="password" placeholder="Password" class="inputBox">
+    <button class="btn" onclick="adminLogin()">Login</button>
+    <p id="aLoginMsg" style="color:red"></p>
+</div>
+
+<!-- SURVEYOR HOME -->
+<div class="page" id="surveyorHomePage">
+    <div class="topTitle">Surveyor Panel</div>
+
+    <input id="accountId" placeholder="Account ID" class="inputBox">
+
+    <button class="btn" onclick="capturePhoto()">Capture Photo</button>
+    <video id="camera" autoplay playsinline></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <img id="preview">
+
+    <button class="btn" onclick="submitSurvey()">Submit Survey</button>
+
+    <div class="card">
+        <div class="topTitle" style="font-size:20px">Search Survey</div>
+        <input id="searchId" placeholder="Enter Account ID" class="inputBox">
+        <button class="btn" onclick="searchSurvey()">Search</button>
+    </div>
+
+    <div id="searchResult"></div>
+
+    <button class="btn-red" onclick="logout()">Logout</button>
+</div>
+
+<!-- ADMIN DASHBOARD -->
+<div class="page" id="adminPage">
+    <div class="topTitle">Admin Dashboard</div>
+
+    <div class="card">
+        <div class="topTitle" style="font-size:20px">Add Surveyor</div>
+        <input id="newSurveyorId" placeholder="Surveyor ID" class="inputBox">
+        <input id="newSurveyorPass" placeholder="Password" class="inputBox">
+        <button class="btn" onclick="addSurveyor()">Add Surveyor</button>
+    </div>
+
+    <div class="card" id="surveyorsList"></div>
+
+    <div class="card" id="surveysList"></div>
+
+    <button class="btn-red" onclick="logout()">Logout</button>
+</div>
+
+<script>
+let loggedSurveyor = "";
+let loggedAdmin = "";
+let imageBase64 = "";
+
+/* ----------------------------
+   SURVEYOR LOGIN
+----------------------------- */
+async function surveyorLogin() {
+    let id = document.getElementById("sId").value;
+    let pass = document.getElementById("sPass").value;
+
+    let res = await fetch(API + "?path=loginSurveyor", {
+        method: "POST",
+        body: JSON.stringify({ surveyorId: id, password: pass })
+    });
+
+    let data = await res.json();
+
+    if (data.status === "success") {
+        localStorage.setItem("surveyorToken", data.token);
+        loggedSurveyor = id;
+        show("surveyorHomePage");
+    } else {
+        document.getElementById("sLoginMsg").innerText = "Invalid login!";
+    }
+}
+
+/* ----------------------------
+   ADMIN LOGIN
+----------------------------- */
+async function adminLogin() {
+    let id = document.getElementById("aId").value;
+    let pass = document.getElementById("aPass").value;
+
+    let res = await fetch(API + "?path=loginAdmin", {
+        method: "POST",
+        body: JSON.stringify({ adminId: id, password: pass })
+    });
+
+    let data = await res.json();
+
+    if (data.status === "success") {
+        localStorage.setItem("adminToken", data.token);
+        loggedAdmin = id;
+        loadAdminDashboard();
+        show("adminPage");
+    } else {
+        document.getElementById("aLoginMsg").innerText = "Invalid login!";
+    }
+}
+
+/* ----------------------------
+   CAMERA CAPTURE
+----------------------------- */
+async function capturePhoto() {
+    const video = document.getElementById("camera");
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+
+    setTimeout(() => {
+        const canvas = document.getElementById("canvas");
+        canvas.width  = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext("2d").drawImage(video, 0, 0);
+
+        imageBase64 = canvas.toDataURL("image/jpeg").split(",")[1];
+        document.getElementById("preview").src = canvas.toDataURL("image/jpeg");
+    }, 2000);
+}
+
+/* ----------------------------
+   SUBMIT SURVEY
+----------------------------- */
+async function submitSurvey() {
+    const accountId = document.getElementById("accountId").value;
+
+    if (!imageBase64) {
+        alert("Capture a photo first!");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(async pos => {
+        let res = await fetch(API + "?path=submitSurvey", {
+            method: "POST",
+            body: JSON.stringify({
+                accountId,
+                surveyorId: loggedSurveyor,
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                imageBase64
+            })
+        });
+
+        let data = await res.json();
+
+        if (data.status === "duplicate") {
+            alert("Duplicate Account ID! Entry not saved.");
+            return;
+        }
+
+        alert("Survey submitted successfully!");
+    });
+}
+
+/* ----------------------------
+   SEARCH SURVEY
+----------------------------- */
+async function searchSurvey() {
+    let id = document.getElementById("searchId").value;
+
+    let res = await fetch(API + "?path=search&accountId=" + id);
+    let data = await res.json();
+
+    if (data.status === "not found") {
+        document.getElementById("searchResult").innerHTML = "<p>No record found.</p>";
+        return;
+    }
+
+    document.getElementById("searchResult").innerHTML = `
+        <div class="card">
+            <p><b>Surveyor:</b> ${data.surveyorId}</p>
+            <p><b>Location:</b> ${data.latitude}, ${data.longitude}</p>
+            <img src="${data.photoUrl}" style="width:100%; border-radius:12px;">
+            <a href="https://maps.google.com/?q=${data.latitude},${data.longitude}" target="_blank">Open in Maps</a>
+        </div>
+    `;
+}
+
+/* ----------------------------
+   ADMIN DASHBOARD LOAD
+----------------------------- */
+async function loadAdminDashboard() {
+    loadSurveyors();
+    loadSurveys();
+}
+
+/* ----------------------------
+   LOAD SURVEYORS
+----------------------------- */
+async function loadSurveyors() {
+    let res = await fetch(API + "?path=getSurveyors");
+    let data = await res.json();
+
+    let html = "<div class='topTitle' style='font-size:20px'>Surveyors</div>";
+
+    data.rows.slice(1).forEach(r => {
+        html += `
+            <div class='card'>
+                <p><b>ID:</b> ${r[0]}</p>
+                <input id="pass_${r[0]}" class="inputBox" placeholder="New Password">
+                <button class='btn' onclick="editSurveyor('${r[0]}')">Update Password</button>
+            </div>
+        `;
+    });
+
+    document.getElementById("surveyorsList").innerHTML = html;
+}
+
+/* ----------------------------
+   EDIT SURVEYOR PASSWORD
+----------------------------- */
+async function editSurveyor(id) {
+    let pass = document.getElementById("pass_" + id).value;
+
+    await fetch(API + "?path=editSurveyor", {
+        method: "POST",
+        body: JSON.stringify({ id, pass })
+    });
+
+    alert("Updated!");
+    loadSurveyors();
+}
+
+/* ----------------------------
+   ADD SURVEYOR
+----------------------------- */
+async function addSurveyor() {
+    let id = document.getElementById("newSurveyorId").value;
+    let pass = document.getElementById("newSurveyorPass").value;
+
+    await fetch(API + "?path=addSurveyor", {
+        method: "POST",
+        body: JSON.stringify({ id, pass })
+    });
+
+    alert("Surveyor added!");
+    loadSurveyors();
+}
+
+/* ----------------------------
+   LOAD SURVEYS
+----------------------------- */
+async function loadSurveys() {
+    let res = await fetch(API + "?path=getSurveys");
+    let data = await res.json();
+
+    let html = "<div class='topTitle' style='font-size:20px'>Surveys</div>";
+
+    data.rows.slice(1).forEach((r, i) => {
+        let rowIndex = i + 2;
+
+        html += `
+            <div class='card'>
+                <p><b>Account:</b> ${r[1]}</p>
+                <p><b>Surveyor:</b> ${r[2]}</p>
+                <button class="btn-red" onclick="deleteSurvey(${rowIndex})">Delete</button>
+            </div>
+        `;
+    });
+
+    document.getElementById("surveysList").innerHTML = html;
+}
+
+/* ----------------------------
+   DELETE SURVEY
+----------------------------- */
+async function deleteSurvey(row) {
+    await fetch(API + "?path=deleteSurvey&row=" + row);
+    alert("Deleted!");
+    loadSurveys();
+}
+
+/* ----------------------------
+   LOGOUT
+----------------------------- */
+function logout() {
+    localStorage.clear();
+    show("chooserPage");
+}
+
+</script>
+
+</body>
+</html>
